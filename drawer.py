@@ -75,7 +75,7 @@ class RecordVideo(object):
             os.makedirs(self.folder)
 
         if is_record:
-            self.video_name = os.path.join(self.folder, '{}_is_track_{}_resize_ratio_{}.avi'.format(
+            self.video_name = os.path.join(self.folder, '{}_is_track_{}_resize_ratio_{}.mp4'.format(
                 self.flags.data[:-4], self.flags.is_tracker, self.flags.resize_ratio))
             # define the codec and create VideoWriter object
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
