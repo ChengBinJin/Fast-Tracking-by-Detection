@@ -1,15 +1,12 @@
-from __future__ import print_function
-
 import numpy as np
 from sklearn.utils.linear_assignment_ import linear_assignment
 from filterpy.kalman import KalmanFilter
 
-
 def iou_tracker(bb_test, bb_gt):
-    xx1 = np.maximum(bb_test[0], bb_gt[0])
-    yy1 = np.maximum(bb_test[1], bb_gt[1])
-    xx2 = np.minimum(bb_test[2], bb_gt[2])
-    yy2 = np.minimum(bb_test[3], bb_gt[3])
+    xx1 = np.maximum(bb_test[0], bb_gt[0])  # x1
+    yy1 = np.maximum(bb_test[1], bb_gt[1])  # x2
+    xx2 = np.minimum(bb_test[2], bb_gt[2])  # x3
+    yy2 = np.minimum(bb_test[3], bb_gt[3])  # x4
     w = np.maximum(0., xx2 - xx1)
     h = np.maximum(0., yy2 - yy1)
     wh = w * h
@@ -25,24 +22,23 @@ def convert_bbox_to_z(bbox):
     y = bbox[1] + h / 2
     s = w * h
     r = w / float(h)
-    return np.array([x, y, s, r]).reshape((4, 1))
+    return np.array([x, y, s, r]).reshape((4, 1))  # center_x, center_y, area, ratio
 
 
 def convert_x_to_bbox(x, score=None):
     w = np.sqrt(x[2] * x[3])
     h = x[2] / w
     if score is None:
-        return np.array([x[0] - w / 2., x[1] - h / 2., x[0] + w / 2., x[1] + h / 2.]).reshape((1, 4))
+        return np.array([x[0] - w / 2., x[1] - h / 2., x[0] + w / 2., x[1] + h / 2.]).reshape((1, 4))  # x1, y1, x2, y2
     else:
         return np.array([x[0] - w / 2., x[1] - h / 2., x[0] + w / 2., x[1] + h / 2., score]).reshape((1, 5))
 
 
 class KalmanBoxTracker(object):
-    count = 0
-
-    def __init__(self, bbox, min_hits):
+    def __init__(self, bbox, min_hits, count=0):
         self.kf = KalmanFilter(dim_x=7, dim_z=4)
-        self.kf.F = np.array(  # state transistion matrix
+        # state transistion matrix
+        self.kf.F = np.array(
             [[1, 0, 0, 0, 1, 0, 0],
              [0, 1, 0, 0, 0, 1, 0],
              [0, 0, 1, 0, 0, 0, 1],
@@ -50,7 +46,8 @@ class KalmanBoxTracker(object):
              [0, 0, 0, 0, 1, 0, 0],
              [0, 0, 0, 0, 0, 1, 0],
              [0, 0, 0, 0, 0, 0, 1]])
-        self.kf.H = np.array(  # measurement function
+        # measurement function
+        self.kf.H = np.array(
             [[1, 0, 0, 0, 0, 0, 0],
              [0, 1, 0, 0, 0, 0, 0],
              [0, 0, 1, 0, 0, 0, 0],
@@ -64,19 +61,19 @@ class KalmanBoxTracker(object):
 
         self.kf.x[:4] = convert_bbox_to_z(bbox)  # filter state estimate
         self.time_since_update = 0
-        self.id = KalmanBoxTracker.count
-        KalmanBoxTracker.count += 1
+        self.id = count
         self.history = []
         self.hits = 0
         self.hit_streak = 0
         self.age = 0
         self.vip = False
         self.min_hits = min_hits
-        self.previous = self.kf.x
-        self.skip_frame = 0
-        self.obj_speed = 0
-        self.max_age_ = 0
-        self.obj_delete = False
+
+        # add for relative max_age of the object
+        self.previous_x = self.kf.x
+        self.obj_speed = 0.
+        self.max_age = 0.
+        self.is_detect = 0
 
     def update(self, bbox):
         self.time_since_update = 0
@@ -84,49 +81,45 @@ class KalmanBoxTracker(object):
         self.hits += 1
         self.hit_streak += 1
         self.kf.update(convert_bbox_to_z(bbox))
-        self.previous = self.kf.x
-        self.obj_delete = False
-        self.max_age_, self.obj_speed = self.maximum_age()
+        self.previous_x = self.kf.x
+        self.is_detect = 1
+        self.max_age = self.cal_max_age()
 
         if self.hit_streak >= self.min_hits:
             self.vip = True
 
     def predict(self):
+        #
         if (self.kf.x[6] + self.kf.x[2]) <= 0:
             self.kf.x[6] *= 0.0
-        self.previous = self.kf.x
+        self.previous_x = self.kf.x
         self.kf.predict()
         self.age += 1
+
         if self.time_since_update > 0:
             self.hit_streak = 0
+
         self.time_since_update += 1
         self.history.append(convert_x_to_bbox(self.kf.x))
-        self.obj_delete = True
-        if self.time_since_update == 0:
-            self.max_age_ = 0
-            self.obj_speed = 0
+        self.is_detect = 0
 
         return self.history[-1]
 
     def get_state(self):
         return convert_x_to_bbox(self.kf.x)
 
-    def maximum_age(self):
-        obj_speed = np.sqrt(self.kf.x[4] ** 2 + self.kf.x[5] ** 2) * 10
-        if obj_speed < 10:
-            self.skip_frame = 100 / (obj_speed + 0.01)
-            # self.skip_frame = 10 * np.exp(-obj_speed)
-        elif obj_speed < 100:
-            self.skip_frame = 150 / (obj_speed + 0.01)
-        else:
-            self.skip_frame = 10
+    def cal_max_age(self):
+        # x, y, w, h, dx, dy, ratio(w/h)
+        obj_speed = np.sqrt(self.kf.x[4] ** 2 + self.kf.x[5] ** 2)
 
-        if self.skip_frame < 3:
-            self.skip_frame = 3
-        if self.skip_frame > 20:
-            self.skip_frame = 20
+        if obj_speed < 1:
+            skip_frame = np.minimum(15, 10 / (obj_speed + 1e-7))
+        elif obj_speed < 10:
+            skip_frame = np.maximum(3, 15 / (obj_speed + 1e-7))
+        else: # >= 10
+            skip_frame = 10
 
-        return int(self.skip_frame), obj_speed
+        return int(skip_frame)
 
 
 def associate_detections_to_trackers(detections, trackers, iou_threshold=0.3):
@@ -169,74 +162,67 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.3):
 
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
-
 class Tracker(object):
-    def __init__(self, max_age=15, min_hits=1, det_confidence=0.5):
-        self.max_age = max_age  # 保持多少帧，我们允许多少帧没有检测到 mis_detection frame
-        self.min_hits = min_hits  # 检测多少帧后就稳定了要开始做tracking，即消除false detection
+    def __init__(self, img_shape, min_hits=0, det_confidence=0.5):
+        self.img_shape = img_shape
+        self.min_hits = min_hits
+        self.det_confidence = det_confidence
         self.trackers = []
         self.frame_count = 0
-        self.det_confidence = det_confidence
+        self.kalman_count = 0
 
     def update(self, dets):
         self.frame_count += 1
-        trks = np.zeros((len(self.trackers), 5))
 
+        trks = np.zeros((len(self.trackers), 5))
         to_del = []
         ret1 = []
         for t, trk in enumerate(trks):  # t: index, trk: content
             pos = self.trackers[t].predict()[0]
             trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
-            if np.any(np.isnan(pos)):
+            if np.any(np.isnan(pos)):  # np.isnan: test element-wise for NaN and return result as a bollean array
                 to_del.append(t)
-        trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
 
+        # np.ma.masked_invalid: Mask an array where invalid values occur (NaNs or infs)
+        # np.ma.compress_rows: Suppresss whole rows of a 2-D array that contain masked values
+        trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
         for t in reversed(to_del):
             self.trackers.pop(t)
+
+        # Hungarian data association
         matched, unmateched_dets, unmatched_trks = associate_detections_to_trackers(dets, trks)
 
         for t, trk in enumerate(self.trackers):
             if t not in unmatched_trks:
-                d = matched[
-                    np.where(matched[:, 1] == t)[0], 0]  # np.where returns two array, one is row index, another
-                # is column. [[]]->[] dimension changed from (a,b) to (a)
+                # np.where returns two array, one is row index, another is column.
+                # [[]]->[] dimension changed from (a,b) to (a)
+                d = matched[np.where(matched[:, 1] == t)[0], 0]
                 trk.update(dets[d, :][0])
 
         for i in unmateched_dets:
-            trk = KalmanBoxTracker(dets[i, :], min_hits=self.min_hits)
+            trk = KalmanBoxTracker(dets[i, :], min_hits=self.min_hits, count=self.kalman_count)
+            self.kalman_count += 1
             self.trackers.append(trk)
 
         i = len(self.trackers)
-        # print("============================================")
         for trk in reversed(self.trackers):
-            d = trk.get_state()[0]  # trk.get_state() is [[]], shape is (1,4), trk.get_state()[0] is [] (shape: (4,))
+            # trk.get_state() is [[]], shape is (1,4), trk.get_state()[0] is [] (shape: (4,))
             # [[1,2]] is a 2d array, shape is (1,2), every row has two elements
             # [1,2] is a one-d array, shape is (2,), this array has two elements
             # [[1],[2]] is a 2d array, shape is (2,1) every row has one elements
-            self.max_age = trk.max_age_
+            d = trk.get_state()[0]
 
-            if trk.obj_delete and np.abs(trk.previous[0] - d[0] > 70):
+            if trk.is_detect == 0 and np.abs(trk.previous_x[0] - d[0]) > 0.1 * self.img_shape[0]:
                 trk.time_since_update = 20
 
-            for trk1 in self.trackers:
-                d1 = trk1.get_state()[0]
-                over_lap = iou_tracker(d, d1)
-                if trk1.obj_delete is False and trk.obj_delete and ((d[0] > d1[0] and d[1] > d1[1] and d[2] + d[0] < d1[
-                    2] + d1[0] and d[3] + d[1] < d1[3] + d1[1]) or (
-                        d[0] > d1[0] and d[1] > d1[1] and d[2] < d1[2] and d[3] < d1[3])):
-                    trk.time_since_update = 20
-
-                if trk1.obj_delete is False and trk.obj_delete and (over_lap >= 0.3 and over_lap <= 0.99):
-                    trk.time_since_update = 20
-
-            if (trk.time_since_update < self.max_age) and ((trk.hit_streak >= self.min_hits) or trk.vip):
-                ret1.append(np.concatenate((d, [trk.id + 1])).reshape(1, -1))
+            if (trk.time_since_update < trk.max_age) and ((trk.hit_streak >= self.min_hits) or trk.vip):
+                ret1.append(np.concatenate((d, [trk.id + 1], [trk.is_detect])).reshape(1, -1))
             i -= 1
 
-            if trk.time_since_update > self.max_age:
+            if trk.time_since_update > trk.max_age:
                 self.trackers.pop(i)
 
         if len(ret1) > 0:
             return np.concatenate(ret1)
         else:
-            return np.empty((0, 5))
+            return np.empty((0, 6))
