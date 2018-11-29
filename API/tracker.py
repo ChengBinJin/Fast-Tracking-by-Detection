@@ -2,7 +2,10 @@ import numpy as np
 from sklearn.utils.linear_assignment_ import linear_assignment
 from filterpy.kalman import KalmanFilter
 
-def iou_tracker(bb_test, bb_gt):
+def iou_tracker(bb_test_, bb_gt_):
+    bb_test = bb_test_.copy().astype(np.float32)
+    bb_gt = bb_gt_.copy().astype(np.float32)
+
     xx1 = np.maximum(bb_test[0], bb_gt[0])  # x1
     yy1 = np.maximum(bb_test[1], bb_gt[1])  # x2
     xx2 = np.minimum(bb_test[2], bb_gt[2])  # x3
@@ -35,7 +38,7 @@ def convert_x_to_bbox(x, score=None):
 
 
 class KalmanBoxTracker(object):
-    def __init__(self, bbox, min_hits, count=0):
+    def __init__(self, bbox, min_hits, count=0, num_classes=20, interval=1):
         self.kf = KalmanFilter(dim_x=7, dim_z=4)
         # state transistion matrix
         self.kf.F = np.array(
@@ -64,7 +67,7 @@ class KalmanBoxTracker(object):
         self.id = count
         self.history = []
         self.hits = 0
-        self.hit_streak = 0
+        self.hit_streak = 1
         self.age = 0
         self.vip = False
         self.min_hits = min_hits
@@ -74,8 +77,15 @@ class KalmanBoxTracker(object):
         self.obj_speed = 0.
         self.max_age = 0.
         self.is_detect = 0
+        # add for saving labels
+        self.num_classes = num_classes  # 20 means number classes in PASCAL VOC
+        self.interval = interval
+        self.label_memory = np.zeros((self.num_classes,), dtype=np.uint16)
+        self.label_memory[int(bbox[4])] += 1
+        self.labelID = np.argmax(self.label_memory)
 
     def update(self, bbox):
+        # bbox: [x1, y1, x2, y2, label_id]
         self.time_since_update = 0
         self.history = []
         self.hits += 1
@@ -84,11 +94,13 @@ class KalmanBoxTracker(object):
         self.previous_x = self.kf.x
         self.is_detect = 1
         self.max_age = self.cal_max_age()
+        self.label_memory[int(bbox[4])] += 1
+        self.labelID = np.argmax(self.label_memory)
 
         if self.hit_streak >= self.min_hits:
             self.vip = True
 
-    def predict(self):
+    def predict(self, is_dect=True):
         #
         if (self.kf.x[6] + self.kf.x[2]) <= 0:
             self.kf.x[6] *= 0.0
@@ -99,7 +111,8 @@ class KalmanBoxTracker(object):
         if self.time_since_update > 0:
             self.hit_streak = 0
 
-        self.time_since_update += 1
+        if is_dect:
+            self.time_since_update += 1
         self.history.append(convert_x_to_bbox(self.kf.x))
         self.is_detect = 0
 
@@ -113,13 +126,13 @@ class KalmanBoxTracker(object):
         obj_speed = np.sqrt(self.kf.x[4] ** 2 + self.kf.x[5] ** 2)
 
         if obj_speed < 1:
-            skip_frame = np.minimum(15, 10 / (obj_speed + 1e-7))
+            skip_frame = np.minimum(20, 10 / (obj_speed + 1e-7))
         elif obj_speed < 10:
             skip_frame = np.maximum(3, 15 / (obj_speed + 1e-7))
         else: # >= 10
             skip_frame = 10
 
-        return int(skip_frame)
+        return int(skip_frame / self.interval)
 
 
 def associate_detections_to_trackers(detections, trackers, iou_threshold=0.3):
@@ -163,22 +176,32 @@ def associate_detections_to_trackers(detections, trackers, iou_threshold=0.3):
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
 class Tracker(object):
-    def __init__(self, img_shape, min_hits=0, det_confidence=0.5):
+    def __init__(self, img_shape, min_hits=0, num_classes=20, interval=1):
         self.img_shape = img_shape
         self.min_hits = min_hits
-        self.det_confidence = det_confidence
+        self.num_classes = num_classes
+        self.interval = interval
         self.trackers = []
         self.frame_count = 0
         self.kalman_count = 0
+        self.skip_ratio = 0.04
 
-    def update(self, dets):
+    def update(self, obj_dets, obj_labels, is_dect=True):
         self.frame_count += 1
+
+        # delete too small objects
+        dets = []
+        for idx in range(obj_dets.shape[0]):
+            if (obj_dets[idx][2] - obj_dets[idx][0] >= self.skip_ratio * self.img_shape[0]) and (
+                    obj_dets[idx][3] - obj_dets[idx][1] >= self.skip_ratio * self.img_shape[1]):
+                dets.append(np.hstack((obj_dets[idx], obj_labels[idx])))
+        dets = np.asarray(dets)
 
         trks = np.zeros((len(self.trackers), 5))
         to_del = []
         ret1 = []
         for t, trk in enumerate(trks):  # t: index, trk: content
-            pos = self.trackers[t].predict()[0]
+            pos = self.trackers[t].predict(is_dect=is_dect)[0]
             trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
             if np.any(np.isnan(pos)):  # np.isnan: test element-wise for NaN and return result as a bollean array
                 to_del.append(t)
@@ -200,7 +223,8 @@ class Tracker(object):
                 trk.update(dets[d, :][0])
 
         for i in unmateched_dets:
-            trk = KalmanBoxTracker(dets[i, :], min_hits=self.min_hits, count=self.kalman_count)
+            trk = KalmanBoxTracker(dets[i, :], min_hits=self.min_hits, count=self.kalman_count,
+                                   num_classes=self.num_classes, interval=self.interval)
             self.kalman_count += 1
             self.trackers.append(trk)
 
@@ -211,18 +235,67 @@ class Tracker(object):
             # [1,2] is a one-d array, shape is (2,), this array has two elements
             # [[1],[2]] is a 2d array, shape is (2,1) every row has one elements
             d = trk.get_state()[0]
+            # if (trk.time_since_update < trk.max_age) and ((trk.hit_streak >= self.min_hits) or trk.vip):
+            if (trk.time_since_update < trk.max_age) and trk.vip:
+                ret1.append(np.concatenate((d, [trk.id + 1], [trk.is_detect], [trk.labelID])).reshape(1, -1))
 
-            if trk.is_detect == 0 and np.abs(trk.previous_x[0] - d[0]) > 0.1 * self.img_shape[0]:
-                trk.time_since_update = 20
-
-            if (trk.time_since_update < trk.max_age) and ((trk.hit_streak >= self.min_hits) or trk.vip):
-                ret1.append(np.concatenate((d, [trk.id + 1], [trk.is_detect])).reshape(1, -1))
             i -= 1
 
             if trk.time_since_update > trk.max_age:
                 self.trackers.pop(i)
 
         if len(ret1) > 0:
-            return np.concatenate(ret1)
+            # return np.concatenate(ret1)
+            return self.hide_boxes(np.concatenate(ret1), is_dect=is_dect)
         else:
-            return np.empty((0, 6))
+            return np.empty((0, 7))
+
+    @staticmethod
+    def hide_boxes(dets, is_dect=True):
+        # dets: [x1, y1, x2, y2, objID, is_update(0,1), labelID]
+        # delete some boxes that included in the big box
+        dets[dets < 0.] = 0.  # some kalman predictions results are negative
+        dets = dets.astype(np.uint16)
+
+        # x1, y1, x2, y2, id, is_dect:[0, 1]
+        num_objects = dets.shape[0]
+        flags = np.ones(num_objects, dtype=np.uint8)
+
+        new_dets = []
+        for idx_a in range(num_objects):
+            for idx_b in range(idx_a+1, num_objects):
+                if flags[idx_b] == 0:
+                    continue
+
+                if is_dect:
+                    # If A include B, and B is predicted then delete B
+                    if (dets[idx_a, 0] <= dets[idx_b, 0]) and (dets[idx_a, 1] <= dets[idx_b, 1]) and (
+                        dets[idx_a, 2] >= dets[idx_b, 2]) and (dets[idx_a, 3] >= dets[idx_b, 3]) and (
+                            dets[idx_b, 5] == 0):
+                            flags[idx_b] = 0
+                            continue
+                    # B inlcude A, and A is predicted tehn delete A
+                    elif (dets[idx_a, 0] >= dets[idx_b, 0]) and (dets[idx_a, 1] >= dets[idx_b, 1]) and (
+                        dets[idx_a, 2] <= dets[idx_b, 2]) and (dets[idx_a, 3] <= dets[idx_b, 3]) and (
+                            dets[idx_a, 5] == 0):
+                            flags[idx_a] = 0
+                            break
+
+                iou = iou_tracker(dets[idx_a], dets[idx_b])
+                if iou >= 0.3:
+                    if dets[idx_a, 5] == 0: # (false, false) and (false, true)
+                        flags[idx_a] = 0
+                        break
+                    else:
+                        if dets[idx_b, 5] == 0: # (true, false)
+                            flags[idx_b] = 0
+                            continue
+                        else: # (true, true)
+                            flags[idx_a] = 0
+                            break
+
+        for idx in range(num_objects):
+            if flags[idx] == 1:
+                new_dets.append(dets[idx])
+
+        return np.asarray(new_dets)

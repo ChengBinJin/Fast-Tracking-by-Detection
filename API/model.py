@@ -1,6 +1,4 @@
 import os
-# import sys
-# import cv2
 import numpy as np
 import tensorflow as tf
 
@@ -12,6 +10,7 @@ class Model(object):
 
         self.flags = flags
         self.ori_h, self.ori_w = 0, 0
+        self.margin_h = 0.
 
         run_config = tf.ConfigProto()
         run_config.gpu_options.allow_growth = True
@@ -38,8 +37,15 @@ class Model(object):
 
         self.input_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
 
+    def set_roi(self, img):
+        self.margin_h = int(img.shape[0] / 3)
+        roi_img = img[self.margin_h::, :, :]
+        self.ori_h, self.ori_w = roi_img.shape[0:2]
+
+        return roi_img
+
     def test(self, img):
-        input_img = np.expand_dims(img, axis=0)
+        input_img = np.expand_dims(self.set_roi(img), axis=0)
         output_dict = self.sess.run(self.output_tensor, feed_dict={self.input_tensor: input_img})
 
         # All outputs are float32 numpy arrays, so convert types as appropriate
@@ -49,8 +55,8 @@ class Model(object):
 
         dets = []
         for idx in range(num_dets):  # from [0., 1.] to original width and height range
-            det = [full_dets[idx][0] * img.shape[0], full_dets[idx][1] * img.shape[1],
-                   full_dets[idx][2] * img.shape[0], full_dets[idx][3] * img.shape[1]]
+            det = [self.margin_h + full_dets[idx][0] * self.ori_h, full_dets[idx][1] * self.ori_w,
+                   self.margin_h + full_dets[idx][2] * self.ori_h, full_dets[idx][3] * self.ori_w]
 
             dets.append(det)
 
