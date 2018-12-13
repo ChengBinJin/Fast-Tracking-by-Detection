@@ -8,12 +8,14 @@ import tensorflow as tf
 from model import Model
 from tracker import Tracker
 from drawer import Drawer
+from recorder import RecordVideo
 
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string('gpu_index', '0', 'gpu index, default: 0')
 tf.flags.DEFINE_string('data', '../../data/video_01.avi', 'test video path, default: ../data/video_01.avi')
-tf.flags.DEFINE_integer('interval', 1, 'detector interval between tracker, default: 1')
+tf.flags.DEFINE_integer('interval', 2, 'detector interval between tracker, default: 1')
 tf.flags.DEFINE_integer('delay', 1, 'interval between two frames, default: 1')
+tf.flags.DEFINE_bool('is_record', False, 'recording video, default: False')
 
 
 def main(_):
@@ -22,10 +24,14 @@ def main(_):
 
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_index
 
-    img_shape = (720, 1280, 2)
+    img_shape = (720, 1280, 3)
     model = Model(FLAGS)  # Initialize detection network
     tracker = Tracker(img_shape, min_hits=3, num_classes=8, interval=FLAGS.interval)  # Initialize tracker
     drawer = Drawer(FLAGS, img_shape)  # Inidialize drawer class
+
+    recoder = None
+    if FLAGS.is_record:
+        recoder = RecordVideo(FLAGS, img_shape)
 
     window_name0 = 'Detection-by-Tracking'
     window_name1 = 'Detection Only'
@@ -71,6 +77,12 @@ def main(_):
             sys.exit(' [*] Esc clicked!')
 
         frameID += 1
+
+        if FLAGS.is_record:
+            recoder.record(show_frame, det_frame)
+
+    if FLAGS.is_record:
+        recoder.turn_off()
 
 
 if __name__ == '__main__':
