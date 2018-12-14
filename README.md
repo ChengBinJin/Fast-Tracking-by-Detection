@@ -42,6 +42,7 @@ Three videos are set by different intervals (1, 2, and 3) of the detector. Big i
     <img src = 'https://user-images.githubusercontent.com/37034031/49987818-0489b880-ffb8-11e8-99bd-c4863f09e5e4.gif'>
   </a>
 </p>  
+
 **Note:** left is tracking-by-detection, right is detection only.  
 
 - [Click to go to the full demo on YouTube! Tracking-by-Detection interval 1](https://www.youtube.com/watch?v=EJkdIyk8JxY)  
