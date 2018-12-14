@@ -42,16 +42,19 @@ Three videos are set by different intervals (1, 2, and 3) of the detector. Big i
     <img src = 'https://user-images.githubusercontent.com/37034031/49987818-0489b880-ffb8-11e8-99bd-c4863f09e5e4.gif'>
   </a>
 </p>  
-**Note**: left is tracking-by-detection, right is detection only.  
+**Note:** left is tracking-by-detection, right is detection only.  
 
 - [Click to go to the full demo on YouTube! Tracking-by-Detection interval 1](https://www.youtube.com/watch?v=EJkdIyk8JxY)  
 - [Click to go to the full demo on YouTube! Tracking-by-detection interval 2](https://www.youtube.com/watch?v=e1ig3GEzuJo&t=9s)  
 - [Click to go to the full demo on YouTube! Tracking-by-detection nterval 3](https://www.youtube.com/watch?v=Cinq8BE-eqY&feature=youtu.be) 
 
-In PC environment (CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz, GPU: GTX 1080, RAM: 32GB)
-- Interval 1: detection only is about **40 FPS**, tracking-by-detection is about **37 FPS**.
-- Interval 2: detection only is about **79 FPS**, tracking-by-detection is about **70 FPS**.
-- Interval 3: detection only is about **119 FPS**, tracking-by-detection is about **102 FPS**.
+In PC environment (CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz, GPU: GTX 1080, RAM: 32GB)  
+
+| interval | Detection only | Tracking-by-Detection |
+|  :---:   |      :---:     |         :---:         |
+|    1     |     40 FPS     |        37 FPS         |
+|    2     |     79 FPS     |        70 FPS         |
+|    3     |    119 FPS     |       120 FPS         |
 
 ## Implementation Details
 - Detector uses Inception-SSD ([Single-Shot Multibox Detector](https://arxiv.org/pdf/1512.02325.pdf)) from the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection). You can replace the detector by your own detector. Good detector means more powerful tracking-by-detection results.  
