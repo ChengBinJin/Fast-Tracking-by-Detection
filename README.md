@@ -55,7 +55,7 @@ In PC environment (CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz, GPU: GTX 1080, 
 |  :---:   |      :---:     |         :---:         |
 |    1     |     40 FPS     |        37 FPS         |
 |    2     |     79 FPS     |        70 FPS         |
-|    3     |    119 FPS     |       120 FPS         |
+|    3     |    119 FPS     |       102 FPS         |
 
 ## Implementation Details
 - Detector uses Inception-SSD ([Single-Shot Multibox Detector](https://arxiv.org/pdf/1512.02325.pdf)) from the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection). You can replace the detector by your own detector. Good detector means more powerful tracking-by-detection results.  
