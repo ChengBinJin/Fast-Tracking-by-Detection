@@ -46,19 +46,27 @@ Three videos are set by different intervals (1, 2, and 3) of the detection. Big 
 
 - [Click to go to the full demo on YouTube! Tracking-by-Detection interval 1](https://www.youtube.com/watch?v=EJkdIyk8JxY)  
 - [Click to go to the full demo on YouTube! Tracking-by-detection interval 2](https://www.youtube.com/watch?v=e1ig3GEzuJo&t=9s)  
-- [Click to go to the full demo on YouTube! Tracking-by-detection nterval 3](https://www.youtube.com/watch?v=Cinq8BE-eqY&feature=youtu.be)  
+- [Click to go to the full demo on YouTube! Tracking-by-detection nterval 3](https://www.youtube.com/watch?v=Cinq8BE-eqY&feature=youtu.be) 
+
+In PC environment (CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz, GPU: GTX 1080, RAM: 32GB)
+- Interval 1: detection only is about 40 FPS, tracking-by-detection is about 37 FPS.
+- Interval 2: detection only is about 79 FPS, tracking-by-detection is about 70 FPS.
+- Interval 3: detection only is about 119 FPS, tracking-by-detection is about 102 FPS.
 
 ## Implementation Details
 - Detector uses Inception-SSD ([Single-Shot Multibox Detector](https://arxiv.org/pdf/1512.02325.pdf)) from the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection). You can replace the detector by your own detector. Good detector means more powerful tracking-by-detection results.  
+
 - Tracker uses Kalman filter with hungarian data-association algorithm.  
+
+- We set RoI of the input frame, because the upper part is sky. The input frame size is (720, 1280), RoI size is (480, 1280) and the RoI in the pb file is automatically resied to (300, 300) to do the forward. You can't change the input placeholder size of the detector. The possible way to change is retraining your own model by setting input size in the configuration file.
 
 ## Documentation
 ### Directory Hierarchy
 ``` 
 .
 │   Fast-tracking-by-detection
-│   ├── data
-│   │   ├── video_01.avi (video not included in git)
+│   ├── data (video data is not included in repository)
+│   │   ├── video_01.avi 
 │   ├── src
 │   │   ├── cropper.py
 │   │   ├── drawer.py
@@ -71,8 +79,8 @@ Three videos are set by different intervals (1, 2, and 3) of the detection. Big 
 │   │   │   │   ├── recorder.py
 │   │   │   │   ├── test_main.py
 │   │   │   │   └── tracker.py
-│   │   │   ├── models
-│   │   │   │    └── frozen_inference_graph.pb (Tensorflow compiled pb file)
+│   │   │   ├── models (detector pb file is not included in repository, but you can download from the following link)
+│   │   │   │    └── frozen_inference_graph.pb (compiled tensorflow pb file)
 │   │   │   ├── utils
 │   │   │   │   ├── readxml.py
 │   │   │   │   └── video2frame.py
@@ -93,9 +101,15 @@ python test_main.py --data=/give/adress/of/the/input/video
 - `--is_record`: recording video, default: `False`  
 
 ### Replace Your own Detector
-Please refer to the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection) tutorial to train your own model and dataset. After training compiled to the `pb` file and replace the `frozen_inference_graph.pb` in the folder `models`.   
+Please refer to the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection) tutorial to train your own model and dataset. After training compiled to the `pb` file and replace the `frozen_inference_graph.pb` in the folder `models`.  
 
-You also need to consider about the `labels' of the object. Each model the label indexs are different. In our model, index ordering is "0: Background", "1: Car", "2: Pedestrain", "3: Cyclist", "4: Motorcyclist", "5: Truck", "6: Bus", and "7: Van". You can refer to the file `drawer.py` in the `API` folder. (**Note:** `drawer.py` in `API` and `src` folder is different. `drawer.py` in `src` is for advanced version of the tracking-by-detection)
+Our Inception-SSD pb file, you can down load from the [link](https://www.dropbox.com/sh/76pr9usl8jyq6ni/AAARnYKFI-zqaK0TzGSE6fNMa?dl=0). Make a new folder `models` in the correct place and copy the `pb` file in the folder.
+
+You also need to consider about the `labels` of the object. Each model the label indexs are different. In our model, index ordering is "0: Background", "1: Car", "2: Pedestrain", "3: Cyclist", "4: Motorcyclist", "5: Truck", "6: Bus", and "7: Van". You can refer to the file `drawer.py` in the `API` folder. (**Note:** `drawer.py` in `API` and `src` folder is different. `drawer.py` in `src` is for advanced version of the tracking-by-detection)
+
+### TO DO List
+- Naive version of the tracking-by-detection (finished)
+- Advanced version of the tracking-by-detection (under progress)
 
 ### Citation
 ```
