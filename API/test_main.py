@@ -13,7 +13,7 @@ from recorder import RecordVideo
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string('gpu_index', '0', 'gpu index, default: 0')
 tf.flags.DEFINE_string('data', '../../data/video_01.avi', 'test video path, default: ../data/video_01.avi')
-tf.flags.DEFINE_integer('interval', 2, 'detector interval between tracker, default: 1')
+tf.flags.DEFINE_integer('interval', 2, 'detector interval between tracker, default: 2')
 tf.flags.DEFINE_integer('delay', 1, 'interval between two frames, default: 1')
 tf.flags.DEFINE_bool('is_record', False, 'recording video, default: False')
 
