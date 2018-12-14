@@ -20,7 +20,7 @@ This repository is the fast tracking-by-detection module in ADAS (Advanced Drive
 - sklearn 0.20.0
 
 ## Tracking-by-Detection Demo
-Three videos are set by different intervals (1, 2, and 3) of the detection. Big interval value gives faster processing time but low accuracy. The interval is hyper-parameter, so it should be set by trading off between speed and accuracy.   
+Three videos are set by different intervals (1, 2, and 3) of the detector. Big interval value gives faster processing time but low accuracy. The interval is hyper-parameter, so it should be set by trading off between speed and accuracy.   
 
 - Detection interval == 1.
 <p align = 'center'>
