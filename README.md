@@ -22,27 +22,27 @@ This repository is the fast tracking-by-detection module in ADAS (Advanced Drive
 ## Tracking-by-Detection Demo
 Three videos are set by different intervals (1, 2, and 3) of the detector. Big interval value gives faster processing time but low accuracy. The interval is hyper-parameter, so it should be set by trading off between speed and accuracy.   
 
-- Detection interval == 1.
+- Detector interval == 1.
 <p align = 'center'>
   <a href = 'https://www.youtube.com/watch?v=EJkdIyk8JxY'>
     <img src = 'https://user-images.githubusercontent.com/37034031/49987504-d35cb880-ffb6-11e8-9ea2-4c7d5130c84b.gif'>
   </a>
 </p>
 
-- Detection interval == 2.
+- Detector interval == 2.
 <p align = 'center'>
   <a href = 'https://www.youtube.com/watch?v=e1ig3GEzuJo&t=9s'>
     <img src = 'https://user-images.githubusercontent.com/37034031/49987601-2df61480-ffb7-11e8-9de9-0d43e16a2553.gif'>
   </a>
 </p>
 
-- Detection interval == 3.
+- Detector interval == 3.
 <p align = 'center'>
   <a href = 'https://www.youtube.com/watch?v=Cinq8BE-eqY&feature=youtu.be'>
     <img src = 'https://user-images.githubusercontent.com/37034031/49987818-0489b880-ffb8-11e8-99bd-c4863f09e5e4.gif'>
   </a>
-</p>
-**Note:** left is tracking-by-detection, right is detection only.  
+</p>  
+**Note**: left is tracking-by-detection, right is detection only.  
 
 - [Click to go to the full demo on YouTube! Tracking-by-Detection interval 1](https://www.youtube.com/watch?v=EJkdIyk8JxY)  
 - [Click to go to the full demo on YouTube! Tracking-by-detection interval 2](https://www.youtube.com/watch?v=e1ig3GEzuJo&t=9s)  
@@ -58,7 +58,7 @@ In PC environment (CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz, GPU: GTX 1080, 
 
 - Tracker uses Kalman filter with hungarian data-association algorithm.  
 
-- We set RoI of the input frame, because the upper part is sky. The input frame size is (720, 1280), RoI size is (480, 1280) and the RoI in the pb file is automatically resied to (300, 300) to do the forward. You can't change the input placeholder size of the detector. The possible way to change is retraining your own model by setting input size in the configuration file.
+- The upper part of the input frame is sky, so we set RoI on bottom part, and detect objects in RoI region only. The input frame size is (720, 1280), RoI size is (480, 1280) and the input RoI in the pb file is automatically resied to (300, 300) to do forward-pass. You can't change the input placeholder size of the detector directly. The possible way for changing is to retrain the detector model by setting the different input size in the configuration file, and compile it.
 
 ## Documentation
 ### Directory Hierarchy
@@ -79,17 +79,17 @@ In PC environment (CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz, GPU: GTX 1080, 
 │   │   │   │   ├── recorder.py
 │   │   │   │   ├── test_main.py
 │   │   │   │   └── tracker.py
-│   │   │   ├── models (detector pb file is not included in repository, but you can download from the following link)
+│   │   │   ├── models (detector pb file is not included in repository)
 │   │   │   │    └── frozen_inference_graph.pb (compiled tensorflow pb file)
 │   │   │   ├── utils
 │   │   │   │   ├── readxml.py
 │   │   │   │   └── video2frame.py
 ```  
-**src**: source codes of the fast-tracking-by-detection
+**src**: source codes of the fast-tracking-by-detection  
 **API**: the codes in `API` is the **naive version of the tracking-by-detection**. All of the following demo videos are used naive version. And the advanced version is under progress.
 
 ### Test Tracking-by-detection  
-Run 'test_main.py' in the `API` folder.  
+Run `test_main.py` in the `API` folder.  
 
 ```
 python test_main.py --data=/give/adress/of/the/input/video
@@ -101,11 +101,12 @@ python test_main.py --data=/give/adress/of/the/input/video
 - `--is_record`: recording video, default: `False`  
 
 ### Replace Your own Detector
-Please refer to the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection) tutorial to train your own model and dataset. After training compiled to the `pb` file and replace the `frozen_inference_graph.pb` in the folder `models`.  
+Please refer to the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection) tutorial to train your own model on your dataset. After training you should compile the model to the `pb` file and replace the `frozen_inference_graph.pb` in the folder `models`.  
 
-Our Inception-SSD pb file, you can down load from the [link](https://www.dropbox.com/sh/76pr9usl8jyq6ni/AAARnYKFI-zqaK0TzGSE6fNMa?dl=0). Make a new folder `models` in the correct place and copy the `pb` file in the folder.
+For our Inception-SSD pb file, you can download from the [link](https://www.dropbox.com/sh/76pr9usl8jyq6ni/AAARnYKFI-zqaK0TzGSE6fNMa?dl=0). Make a new folder `models` in the correct place (check the above `Directory Hierarchy` structure) and copy the `pb` file in the folder.
 
-You also need to consider about the `labels` of the object. Each model the label indexs are different. In our model, index ordering is "0: Background", "1: Car", "2: Pedestrain", "3: Cyclist", "4: Motorcyclist", "5: Truck", "6: Bus", and "7: Van". You can refer to the file `drawer.py` in the `API` folder. (**Note:** `drawer.py` in `API` and `src` folder is different. `drawer.py` in `src` is for advanced version of the tracking-by-detection)
+You also need to consider about the `labels` of the object. Each model the label indexs are different. In our model, index ordering is "0: Background", "1: Car", "2: Pedestrain", "3: Cyclist", "4: Motorcyclist", "5: Truck", "6: Bus", and "7: Van". Refer to the file `drawer.py` in the `API` folder.  
+(**Note:** `drawer.py` in `API` and `drawer` in `src` folder are different. You need to revise `drawer.py` in `API` folder. `drawer.py` in `src` is for advanced version of the tracking-by-detection)
 
 ### TO DO List
 - Naive version of the tracking-by-detection (Finished)
