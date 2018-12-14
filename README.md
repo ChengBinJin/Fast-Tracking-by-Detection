@@ -108,8 +108,8 @@ Our Inception-SSD pb file, you can down load from the [link](https://www.dropbox
 You also need to consider about the `labels` of the object. Each model the label indexs are different. In our model, index ordering is "0: Background", "1: Car", "2: Pedestrain", "3: Cyclist", "4: Motorcyclist", "5: Truck", "6: Bus", and "7: Van". You can refer to the file `drawer.py` in the `API` folder. (**Note:** `drawer.py` in `API` and `src` folder is different. `drawer.py` in `src` is for advanced version of the tracking-by-detection)
 
 ### TO DO List
-- Naive version of the tracking-by-detection (finished)
-- Advanced version of the tracking-by-detection (under progress)
+- Naive version of the tracking-by-detection (Finished)
+- Advanced version of the tracking-by-detection (Under Progress)
 
 ### Citation
 ```
