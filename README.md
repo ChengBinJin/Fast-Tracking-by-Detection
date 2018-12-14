@@ -49,9 +49,9 @@ Three videos are set by different intervals (1, 2, and 3) of the detection. Big 
 - [Click to go to the full demo on YouTube! Tracking-by-detection nterval 3](https://www.youtube.com/watch?v=Cinq8BE-eqY&feature=youtu.be) 
 
 In PC environment (CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz, GPU: GTX 1080, RAM: 32GB)
-- Interval 1: detection only is about 40 FPS, tracking-by-detection is about 37 FPS.
-- Interval 2: detection only is about 79 FPS, tracking-by-detection is about 70 FPS.
-- Interval 3: detection only is about 119 FPS, tracking-by-detection is about 102 FPS.
+- Interval 1: detection only is about **40 FPS**, tracking-by-detection is about **37 FPS**.
+- Interval 2: detection only is about **79 FPS**, tracking-by-detection is about **70 FPS**.
+- Interval 3: detection only is about **119 FPS**, tracking-by-detection is about **102 FPS**.
 
 ## Implementation Details
 - Detector uses Inception-SSD ([Single-Shot Multibox Detector](https://arxiv.org/pdf/1512.02325.pdf)) from the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection). You can replace the detector by your own detector. Good detector means more powerful tracking-by-detection results.  
@@ -89,7 +89,7 @@ In PC environment (CPU: Intel(R) Core(TM) i7-4770 CPU @ 3.40GHz, GPU: GTX 1080, 
 **API**: the codes in `API` is the **naive version of the tracking-by-detection**. All of the following demo videos are used naive version. And the advanced version is under progress.
 
 ### Test Tracking-by-detection  
-Run 'test_main.py' in the `API' folder.  
+Run 'test_main.py' in the `API` folder.  
 
 ```
 python test_main.py --data=/give/adress/of/the/input/video
